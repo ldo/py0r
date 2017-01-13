@@ -362,7 +362,7 @@ class Plugin :
                 raise TypeError("param must be identified by index or name")
             #end if
             c_result = param.type.f0r_type()
-            self._lib.f0r_get_param_value.argtypes(self._instance, ct.byref(c_result), param.index)
+            self._lib.f0r_get_param_value(self._instance, ct.byref(c_result), param.index)
             return \
                 param.type.from_f0r(c_result)
         #end __getitem__
