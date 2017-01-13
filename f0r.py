@@ -186,7 +186,7 @@ del from_f0r_colour, from_f0r_position
 plugin_info = namedtuple("PluginInfo", tuple(f[0] for f in F0R.plugin_info_t._fields_))
 param_info = namedtuple("PluginParamInfo", tuple(f[0] for f in F0R.param_info_t._fields_) + ("index",))
 
-def decode_struct(structval, structtype, tupletype, enum_remap) :
+def decode_struct(structval, structtype, tupletype, enum_remap, extra) :
     result = []
     for fieldname, fieldtype in structtype._fields_ :
         attr = getattr(structval, fieldname)
@@ -203,7 +203,7 @@ def decode_struct(structval, structtype, tupletype, enum_remap) :
         #end if
     #end for
     return \
-        tupletype(*result)
+        tupletype(*(tuple(result) + extra))
 #end decode_struct
 
 subdir_name = "frei0r-1"
@@ -287,7 +287,7 @@ class Plugin :
         lib.f0r_get_param_value.argtypes = (F0R.instance_t, F0R.param_t, ct.c_int)
         c_info = F0R.plugin_info_t()
         lib.f0r_get_plugin_info(ct.byref(c_info))
-        self.info = decode_struct(c_info, F0R.plugin_info_t, plugin_info, {"plugin_type" : PLUGIN_TYPE, "colour_model" : COLOUR_MODEL})
+        self.info = decode_struct(c_info, F0R.plugin_info_t, plugin_info, {"plugin_type" : PLUGIN_TYPE, "colour_model" : COLOUR_MODEL}, ())
         # defer filling in of params info until it’s actually needed
         self._params = None
         self._params_by_name = None
@@ -312,8 +312,7 @@ class Plugin :
             c_info = F0R.param_info_t()
             for i in range(self.info.num_params) :
                 self._lib.f0r_get_param_info(ct.byref(c_info), i)
-                param = decode_struct(c_info, F0R.param_info_t, param_info, {"type" : PARAM})
-                param.index = i
+                param = decode_struct(c_info, F0R.param_info_t, param_info, {"type" : PARAM}, (i,))
                 params[param.name] = param
             #end for
             self._params = tuple(params.values())
