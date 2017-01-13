@@ -35,7 +35,7 @@ class F0R :
                 ("name", ct.c_char_p),
                 ("author", ct.c_char_p),
                 ("plugin_type", ct.c_int),
-                ("color_model", ct.c_int),
+                ("colour_model", ct.c_int),
                 ("frei0r_version", ct.c_int), # version of frie0r that plugin is built for
                 ("major_version", ct.c_int),
                 ("minor_version", ct.c_int),
@@ -287,7 +287,7 @@ class Plugin :
         lib.f0r_get_param_value.argtypes = (F0R.instance_t, F0R.param_t, ct.c_int)
         c_info = F0R.plugin_info_t()
         lib.f0r_get_plugin_info(ct.byref(c_info))
-        self.info = decode_struct(c_info, F0R.plugin_info_t, plugin_info, {"plugin_type" : PLUGIN_TYPE})
+        self.info = decode_struct(c_info, F0R.plugin_info_t, plugin_info, {"plugin_type" : PLUGIN_TYPE, "colour_model" : COLOUR_MODEL})
         # defer filling in of params info until it’s actually needed
         self._params = None
         self._params_by_name = None
