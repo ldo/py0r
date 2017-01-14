@@ -312,13 +312,14 @@ def get_all(vendor = None) :
         dict((plugin.info.name, plugin) for plugin in find_all(vendor))
 #end get_all
 
-max_image_dimension = 2048
+max_image_dimension = 2048 # width and height cannot exceed this
+image_dimension_modulo = 8 # width and height must be exact multiples of this
 
 def check_dimensions_ok(dimensions, where = None) :
     "checks that the Vector dimensions is suitable as the dimensions of an image" \
     " for Frei0r to operate on."
     width, height = Vector.from_tuple(dimensions).assert_isint()
-    assert max_image_dimension >= width > 0 and max_image_dimension >= height > 0 and width % 8 == 0 and height % 8 == 0, \
+    assert max_image_dimension >= width > 0 and max_image_dimension >= height > 0 and width % image_dimension_modulo == 0 and height % image_dimension_modulo == 0, \
         "invalid image dimensions%s" % (lambda : "", lambda : " %s" % where)[where != None]()
     return \
         Vector(width, height)
