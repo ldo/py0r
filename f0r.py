@@ -19,6 +19,9 @@ import qahirah as qah
 from qahirah import \
     Colour, \
     Vector
+import pixman
+from pixman import \
+    PIXMAN
 
 class F0R :
     "useful definitions adapted from frei0r.h. You will need to use the constants," \
@@ -151,6 +154,14 @@ class COLOUR_MODEL(enum.Enum) :
     BGRA8888 = 0
     RGBA8888 = 1
     PACKED32 = 2
+
+    @property
+    def rearrange(self) :
+        "do the colour components need rearranging to agree with Cairo’s FORMAT_ARGB32."
+        return \
+            self == COLOUR_MODEL.RGBA8888
+    #end rearrange
+
 #end COLOUR_MODEL
 
 @enum.unique
@@ -333,6 +344,27 @@ def check_dimensions_ok(dimensions, where = None) :
         Vector(width, height)
 #end check_dimensions_ok
 
+def get_frame_arg(frame) :
+    "returns the integer base address of a frame buffer."
+    # Not bothering to check alignment requirements!
+    if isinstance(frame, ct.c_void_p) :
+        baseaddr = frame.value
+    elif isinstance(frame, array.array) :
+        baseaddr = frame.buffer_info()[0]
+    elif isinstance(frame, bytearray) :
+        baseaddr = ct.addressof((ct.c_char * len(frame)).from_buffer(frame))
+    elif isinstance(frame, qah.ImageSurface) :
+        # Not bothering to check pixel/dimensions compatibility!
+        baseaddr = frame.data
+    elif frame == None :
+        baseaddr = None
+    else :
+        raise TypeError("wrong type for frame arg")
+    #end if
+    return \
+        baseaddr
+#end get_frame_arg
+
 class Plugin :
     "wrapper class for a Frei0r plugin. Can be instantiated directly from" \
     " the pathname of a .so file; otherwise, use find_all or get_all to get these."
@@ -398,13 +430,14 @@ class Plugin :
         "wrapper class for a Frei0r plugin instance. Do not instantiate directly; get" \
         " from a call to Plugin.construct()."
 
-        __slots__ = ("_instance", "_parent", "_lib", "dimensions")
+        __slots__ = ("_instance", "_parent", "_lib", "dimensions", "rearrange")
 
-        def __init__(self, instance, parent, dimensions) :
+        def __init__(self, instance, parent, dimensions, rearrange) :
             self._instance = instance
             self._parent = parent
             self._lib = parent._lib
             self.dimensions = dimensions
+            self.rearrange = rearrange
         #end __init__
 
         def __repr__(self) :
@@ -477,52 +510,147 @@ class Plugin :
             #end for
         #end params
 
-        @staticmethod
-        def _get_frame_arg(frame) :
-            # returns the integer base address of a frame buffer.
-            # Not bothering to check alignment requirements!
-            if isinstance(frame, ct.c_void_p) :
-                baseaddr = frame.value
-            elif isinstance(frame, array.array) :
-                baseaddr = frame.buffer_info()[0]
-            elif isinstance(frame, bytearray) :
-                baseaddr = ct.addressof((ct.c_char * len(frame)).from_buffer(frame))
-            elif isinstance(frame, qah.ImageSurface) :
-                # Not bothering to check pixel/dimensions compatibility!
-                baseaddr = frame.data
-            elif frame == None :
-                baseaddr = None
-            else :
-                raise TypeError("wrong type for frame arg")
-            #end if
-            return \
-                baseaddr
-        #end _get_frame_arg
+        class ChannelRearranger :
+            "rearranges R and B channels as necessary to convert between RGBA8888 colour" \
+            " model and Cairo’s channel ordering, which corresponds to BGRA8888."
+
+            __slots__ = ("_parentobj", "rearrange", "src", "dst")
+
+            def __init__(self, baseaddr, dimensions, parentobj, out, rearrange) :
+                baseaddr = get_frame_arg(baseaddr)
+                if baseaddr == None :
+                    rearrange = False # no pixels to rearrange
+                #end if
+                self.rearrange = rearrange
+                if rearrange :
+                    orig = pixman.Image.create_bits \
+                      (
+                        format = PIXMAN.a8r8g8b8,
+                        dimensions = dimensions,
+                        bits = baseaddr,
+                        stride = dimensions.x * 4 # should be correct, given constraints on dimensions
+                      )
+                    copy = pixman.Image.create_bits \
+                      (
+                        format = PIXMAN.a8b8g8r8,
+                          # doesn’t really matter which of orig/copy is which format,
+                          # just so long as they’re different
+                        dimensions = dimensions
+                      )
+                    if out :
+                        self.src = copy # plugin writes to copy
+                        self.dst = orig
+                    else :
+                        self.src = orig
+                        self.dst = copy # plugin reads from copy
+                    #end if
+                else :
+                    self.src = baseaddr
+                    self.dst = baseaddr
+                #end if
+                self._parentobj = parentobj # just to ensure it doesn’t go away prematurely
+            #end __init__
+
+            def convert(self) :
+                if self.rearrange :
+                    pixman.image_composite \
+                      (
+                        op = PIXMAN.OP_SRC,
+                        src = self.src,
+                        mask = None,
+                        dest = self.dst,
+                        src_pos = (0, 0),
+                        mask_pos = None,
+                        dest_pos = (0, 0),
+                        dimensions = self.src.dimensions
+                      )
+                #end if
+                return \
+                    (lambda : None, lambda : self.dst.data)[self.dst != None]()
+            #end convert
+
+            @property
+            def buf(self) :
+                return \
+                    (lambda : None, lambda : self.src.data)[self.src != None]()
+            #end buf
+
+        #end ChannelRearranger
 
         def update(self, time, inframe, outframe) :
             if not hasattr(self._parent._lib, "f0r_update") :
                 raise NotImplementedError("plugin has no update method")
             #end if
+            inframe_r = self.ChannelRearranger \
+              (
+                baseaddr = inframe,
+                dimensions = self.dimensions,
+                parentobj = inframe,
+                out = False,
+                rearrange = self.rearrange
+              )
+            outframe_r = self.ChannelRearranger \
+              (
+                baseaddr = outframe,
+                dimensions = self.dimensions,
+                parentobj = outframe,
+                out = True,
+                rearrange = self.rearrange
+              )
             self._parent._lib.f0r_update \
               (
                 self._instance,
                 time,
-                self._get_frame_arg(inframe),
-                self._get_frame_arg(outframe)
+                inframe_r.convert(),
+                outframe_r.buf
               )
+            outframe_r.convert()
         #end update
 
         def update2(self, time, inframe1, inframe2, inframe3, outframe) :
             if hasattr(self._parent._lib, "f0r_update2") :
+                inframe1_r = self.ChannelRearranger \
+                  (
+                    baseaddr = inframe1,
+                    dimensions = self.dimensions,
+                    parentobj = inframe1,
+                    out = False,
+                    rearrange = self.rearrange
+                  )
+                inframe2_r = self.ChannelRearranger \
+                  (
+                    baseaddr = inframe2,
+                    dimensions = self.dimensions,
+                    parentobj = inframe2,
+                    out = False,
+                    rearrange = self.rearrange
+                  )
+                inframe3_r = self.ChannelRearranger \
+                  (
+                    baseaddr = inframe3,
+                    dimensions = self.dimensions,
+                    parentobj = inframe3,
+                    out = False,
+                    rearrange = self.rearrange
+                  )
+                outframe_r = self.ChannelRearranger \
+                  (
+                    baseaddr = outframe,
+                    dimensions = self.dimensions,
+                    parentobj = outframe,
+                    out = True,
+                    rearrange = self.rearrange
+                  )
                 self._parent._lib.f0r_update2 \
                   (
                     self._instance,
                     time,
-                    self._get_frame_arg(inframe1),
-                    self._get_frame_arg(inframe2),
-                    self._get_frame_arg(inframe3),
-                    self._get_frame_arg(outframe)
+                    inframe1_r.convert(),
+                    inframe2_r.convert(),
+                    inframe3_r.convert(),
+                    outframe_r.buf
                   )
+                outframe_r.convert()
             else :
                 if inframe2 != None or inframe3 != None :
                     raise NotImplementedError("plugin has no update2 method")
@@ -530,20 +658,38 @@ class Plugin :
                 if not hasattr(self._parent._lib, "f0r_update") :
                     raise NotImplementedError("plugin has no update method")
                 #end if
+                inframe1_r = self.ChannelRearranger \
+                  (
+                    baseaddr = inframe1,
+                    dimensions = self.dimensions,
+                    parentobj = inframe1,
+                    out = False,
+                    rearrange = self.rearrange
+                  )
+                outframe_r = self.ChannelRearranger \
+                  (
+                    baseaddr = outframe,
+                    dimensions = self.dimensions,
+                    parentobj = outframe,
+                    out = True,
+                    rearrange = self.rearrange
+                  )
                 self._parent._lib.f0r_update \
                   (
                     self._instance,
                     time,
-                    self._get_frame_arg(inframe1),
-                    self._get_frame_arg(outframe)
+                    inframe1_r.convert(),
+                    outframe_r.buf
                   )
+                outframe_r.convert()
             #end if
         #end update2
 
     #end Instance
 
-    def construct(self, dimensions) :
-        "constructs a new instance of this Plugin."
+    def construct(self, dimensions, rearrange = True) :
+        "constructs a new instance of this Plugin. rearrange indicates whether to rearrange" \
+        " R and B channels as necessary to agree with Cairo’s FORMAT_ARGB32 channel ordering."
         width, height = check_dimensions_ok(dimensions)
         instance = self._lib.f0r_construct(width, height)
         if instance == None :
@@ -553,7 +699,13 @@ class Plugin :
               )
         #end if
         return \
-            type(self).Instance(instance, self, Vector(width, height))
+            type(self).Instance \
+              (
+                instance = instance,
+                parent = self,
+                dimensions = Vector(width, height),
+                rearrange = rearrange and self.info.colour_model.rearrange
+              )
     #end construct
 
 #end Plugin
