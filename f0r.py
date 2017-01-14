@@ -298,6 +298,18 @@ def get_all(vendor = None) :
         dict((plugin.info.name, plugin) for plugin in find_all(vendor))
 #end get_all
 
+max_image_dimension = 2048
+
+def check_dimensions_ok(dimensions, where = None) :
+    "checks that the Vector dimensions is suitable as the dimensions of an image" \
+    " for Frei0r to operate on."
+    width, height = Vector.from_tuple(dimensions).assert_isint()
+    assert max_image_dimension >= width > 0 and max_image_dimension >= height > 0 and width % 8 == 0 and height % 8 == 0, \
+        "invalid image dimensions%s" % (lambda : "", lambda : " %s" % where)[where != None]()
+    return \
+        Vector(width, height)
+#end check_dimensions_ok
+
 class Plugin :
     "wrapper class for a Frei0r plugin. Can be instantiated directly from" \
     " the pathname of a .so file; otherwise, use the find_all method."
@@ -496,9 +508,7 @@ class Plugin :
 
     def construct(self, dimensions) :
         "constructs a new instance of this Plugin."
-        width, height = tx, ty = Vector.from_tuple(dimensions).assert_isint()
-        assert 2048 >= width > 0 and 2048 >= height > 0 and width % 8 == 0 and height % 8 == 0, \
-            "invalid image dimensions"
+        width, height = check_dimensions_ok(dimensions)
         instance = self._lib.f0r_construct(width, height)
         if instance == None :
             raise RuntimeError \
