@@ -110,7 +110,7 @@ class PLUGIN_TYPE(enum.Enum) :
 
     @property
     def has_update2(self) :
-        "does this plugin have the update2 method (three input frame buffers)."
+        "does this plugin have the update2 method (up to three input frame buffers)."
         return \
             self._has_update_methods[self][1]
     #end has_update2
@@ -490,18 +490,31 @@ class Plugin :
         #end update
 
         def update2(self, time, inframe1, inframe2, inframe3, outframe) :
-            if not hasattr(self._parent._lib, "f0r_update2") :
-                raise NotImplementedError("plugin has no update2 method")
+            if hasattr(self._parent._lib, "f0r_update2") :
+                self._parent._lib.f0r_update2 \
+                  (
+                    self._instance,
+                    time,
+                    self._get_frame_arg(inframe1),
+                    self._get_frame_arg(inframe2),
+                    self._get_frame_arg(inframe3),
+                    self._get_frame_arg(outframe)
+                  )
+            else :
+                if inframe2 != None or inframe3 != None :
+                    raise NotImplementedError("plugin has no update2 method")
+                #end if
+                if not hasattr(self._parent._lib, "f0r_update") :
+                    raise NotImplementedError("plugin has no update method")
+                #end if
+                self._parent._lib.f0r_update \
+                  (
+                    self._instance,
+                    time,
+                    self._get_frame_arg(inframe1),
+                    self._get_frame_arg(outframe)
+                  )
             #end if
-            self._parent._lib.f0r_update2 \
-              (
-                self._instance,
-                time,
-                self._get_frame_arg(inframe1),
-                self._get_frame_arg(inframe2),
-                self._get_frame_arg(inframe3),
-                self._get_frame_arg(outframe)
-              )
         #end update2
 
     #end Instance
