@@ -5,8 +5,12 @@ import enum
 from collections import \
     namedtuple
 import os
+import array
 import ctypes as ct
 import qahirah as qah
+from qahirah import \
+    Colour, \
+    Vector
 
 class F0R :
     "useful definitions adapted from frei0r.h. You will need to use the constants," \
@@ -165,11 +169,11 @@ PARAM._to_f0r = \
     }
 def from_f0r_colour(fc) :
     return \
-        qah.Colour(fc.r, fc.g, fc.b, 1)
+        Colour(fc.r, fc.g, fc.b, 1)
 #end from_f0r_colour
 def from_f0r_position(fp) :
     return \
-        qah.Vector(fp.x, fp.y)
+        Vector(fp.x, fp.y)
 #end from_f0r_position
 PARAM._from_f0r = \
     {
@@ -290,6 +294,8 @@ class Plugin :
         lib.f0r_destruct.argtypes = (F0R.instance_t,)
         lib.f0r_set_param_value.argtypes = (F0R.instance_t, F0R.param_t, ct.c_int)
         lib.f0r_get_param_value.argtypes = (F0R.instance_t, F0R.param_t, ct.c_int)
+        lib.f0r_update.argtypes = (F0R.instance_t, ct.c_double, ct.c_void_p, ct.c_void_p)
+        lib.f0r_update2.argtypes = (F0R.instance_t, ct.c_double, ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p)
         c_info = F0R.plugin_info_t()
         lib.f0r_get_plugin_info(ct.byref(c_info))
         self.info = decode_struct(c_info, F0R.plugin_info_t, plugin_info, {"plugin_type" : PLUGIN_TYPE, "colour_model" : COLOUR_MODEL}, ())
@@ -331,12 +337,13 @@ class Plugin :
         "wrapper class for a Frei0r plugin instance. Do not instantiate directly; get" \
         " from a call to Plugin.construct()."
 
-        __slots__ = ("_instance", "_parent", "_lib")
+        __slots__ = ("_instance", "_parent", "_lib", "dimensions")
 
-        def __init__(self, instance, parent) :
+        def __init__(self, instance, parent, dimensions) :
             self._instance = instance
             self._parent = parent
             self._lib = parent._lib
+            self.dimensions = dimensions
         #end __init__
 
         def __repr__(self) :
@@ -409,14 +416,64 @@ class Plugin :
             #end for
         #end params
 
-        # TBD update, update2
+        @staticmethod
+        def _get_frame_arg(frame) :
+            # returns the integer base address of a frame buffer.
+            # Not bothering to check alignment requirements!
+            if isinstance(frame, ct.c_void_p) :
+                baseaddr = frame.value
+            elif isinstance(frame, array.array) :
+                baseaddr = frame.buffer_info()[0]
+            elif isinstance(frame, bytearray) :
+                baseaddr = ct.addressof((ct.c_char * len(frame)).from_buffer(frame))
+            elif isinstance(frame, qah.ImageSurface) :
+                # Not bothering to check pixel/dimensions compatibility!
+                baseaddr = frame.data
+            else :
+                raise TypeError("wrong type for frame arg")
+            #end if
+            return \
+                baseaddr
+        #end _get_frame_arg
+
+        def update(self, time, inframe, outframe) :
+            self._parent._lib.f0r_update \
+              (
+                self._instance,
+                time,
+                self._get_frame_arg(inframe),
+                self._get_frame_arg(outframe)
+              )
+        #end update
+
+        def update2(self, time, inframe1, inframe2, inframe3, outframe) :
+            self._parent._lib.f0r_update2 \
+              (
+                self._instance,
+                time,
+                self._get_frame_arg(inframe1),
+                self._get_frame_arg(inframe2),
+                self._get_frame_arg(inframe3),
+                self._get_frame_arg(outframe)
+              )
+        #end update2
 
     #end Instance
 
-    def construct(self, width, height) :
+    def construct(self, dimensions) :
         "constructs a new instance of this Plugin."
+        width, height = tx, ty = Vector.from_tuple(dimensions).assert_isint()
+        assert 2048 >= width > 0 and 2048 >= height > 0 and width % 8 == 0 and height % 8 == 0, \
+            "invalid image dimensions"
+        instance = self._lib.f0r_construct(width, height)
+        if instance == None :
+            raise RuntimeError \
+              (
+                "failure constructing plugin instance for “%s”" % self._parent.info.name
+              )
+        #end if
         return \
-            type(self).Instance(self._lib.f0r_construct(width, height), self)
+            type(self).Instance(instance, self, Vector(width, height))
     #end construct
 
 #end Plugin
