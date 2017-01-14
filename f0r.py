@@ -102,6 +102,13 @@ class PLUGIN_TYPE(enum.Enum) :
     MIXER3 = 3
 
     @property
+    def nr_inputs(self) :
+        "how many inputs does the plugin take."
+        return \
+            self._nr_inputs[self]
+    #end nr_inputs
+
+    @property
     def has_update(self) :
         "does this plugin have the update method (single input frame buffer)."
         return \
@@ -116,6 +123,13 @@ class PLUGIN_TYPE(enum.Enum) :
     #end has_update2
 
 #end PLUGIN_TYPE
+PLUGIN_TYPE._nr_inputs = \
+    {
+        PLUGIN_TYPE.FILTER : 1,
+        PLUGIN_TYPE.SOURCE : 0,
+        PLUGIN_TYPE.MIXER2 : 2,
+        PLUGIN_TYPE.MIXER3 : 3,
+    }
 PLUGIN_TYPE._has_update_methods = \
     {
         PLUGIN_TYPE.FILTER : (True, False),
