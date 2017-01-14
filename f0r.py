@@ -3,8 +3,7 @@
 
 import enum
 from collections import \
-    namedtuple, \
-    OrderedDict
+    namedtuple
 import os
 import ctypes as ct
 import qahirah as qah
@@ -267,6 +266,12 @@ def find_all(vendor = None) :
         find_all_in(get_directories(vendor))
 #end find_all
 
+def get_all(vendor = None) :
+    "returns a dict of all plugin instances that can be found in the usual directories."
+    return \
+        dict((plugin.info.name, plugin) for plugin in find_all(vendor))
+#end get_all
+
 class Plugin :
     "wrapper class for a Frei0r plugin. Can be instantiated directly from" \
     " the pathname of a .so file; otherwise, use the find_all method."
@@ -308,15 +313,15 @@ class Plugin :
     @property
     def params(self) :
         if self._params == None :
-            params = OrderedDict()
+            self._params = []
+            self._params_by_name = {}
             c_info = F0R.param_info_t()
             for i in range(self.info.num_params) :
                 self._lib.f0r_get_param_info(ct.byref(c_info), i)
                 param = decode_struct(c_info, F0R.param_info_t, param_info, {"type" : PARAM}, (i,))
-                params[param.name] = param
+                self._params.append(param)
+                self._params_by_name[param.name] = param
             #end for
-            self._params = tuple(params.values())
-            self._params_by_name = params
         #end if
         return \
             self._params
@@ -380,6 +385,29 @@ class Plugin :
             param.type.to_f0r(newvalue, c_value)
             self._lib.f0r_set_param_value(self._instance, ct.byref(c_value), param.index)
         #end __setitem__
+
+        def __iter__(self) :
+            for param in self._parent._params :
+                yield param.name
+            #end for
+        #end __iter__
+
+        @property
+        def params(self) :
+            result = {}
+            for paramname in self :
+                result[paramname] = self[paramname]
+            #end for
+            return \
+                result
+        #end params
+
+        @params.setter
+        def params(self, newparams) :
+            for paramname, paramvalue in newparams.items() :
+                self[paramname] = paramvalue
+            #end for
+        #end params
 
         # TBD update, update2
 
