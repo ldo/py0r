@@ -356,7 +356,7 @@ class Plugin :
             #end for
         #end if
         return \
-            self._params
+            self._params_by_name
     #end params
 
     class Instance :
