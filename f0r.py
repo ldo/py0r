@@ -294,8 +294,12 @@ class Plugin :
         lib.f0r_destruct.argtypes = (F0R.instance_t,)
         lib.f0r_set_param_value.argtypes = (F0R.instance_t, F0R.param_t, ct.c_int)
         lib.f0r_get_param_value.argtypes = (F0R.instance_t, F0R.param_t, ct.c_int)
-        lib.f0r_update.argtypes = (F0R.instance_t, ct.c_double, ct.c_void_p, ct.c_void_p)
-        lib.f0r_update2.argtypes = (F0R.instance_t, ct.c_double, ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p)
+        if hasattr(lib, "f0r_update") :
+            lib.f0r_update.argtypes = (F0R.instance_t, ct.c_double, ct.c_void_p, ct.c_void_p)
+        #end if
+        if hasattr(lib, "f0r_update2") :
+            lib.f0r_update2.argtypes = (F0R.instance_t, ct.c_double, ct.c_void_p, ct.c_void_p, ct.c_void_p, ct.c_void_p)
+        #end if
         c_info = F0R.plugin_info_t()
         lib.f0r_get_plugin_info(ct.byref(c_info))
         self.info = decode_struct(c_info, F0R.plugin_info_t, plugin_info, {"plugin_type" : PLUGIN_TYPE, "colour_model" : COLOUR_MODEL}, ())
@@ -437,6 +441,9 @@ class Plugin :
         #end _get_frame_arg
 
         def update(self, time, inframe, outframe) :
+            if not hasattr(self._parent._lib, "f0r_update") :
+                raise NotImplementedError("plugin has no update method")
+            #end if
             self._parent._lib.f0r_update \
               (
                 self._instance,
@@ -447,6 +454,9 @@ class Plugin :
         #end update
 
         def update2(self, time, inframe1, inframe2, inframe3, outframe) :
+            if not hasattr(self._parent._lib, "f0r_update2") :
+                raise NotImplementedError("plugin has no update2 method")
+            #end if
             self._parent._lib.f0r_update2 \
               (
                 self._instance,
