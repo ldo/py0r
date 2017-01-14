@@ -1,5 +1,13 @@
 """A Python3 wrapper for the Frei0r API for video effects plugins <https://frei0r.dyne.org/>.
 """
+#+
+# Copyright 2017 by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
+#
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2 of the License, or (at your option) any later version.
+#-
 
 import enum
 from collections import \
