@@ -100,7 +100,29 @@ class PLUGIN_TYPE(enum.Enum) :
     SOURCE = 1
     MIXER2 = 2
     MIXER3 = 3
+
+    @property
+    def has_update(self) :
+        "does this plugin have the update method (single input frame buffer)."
+        return \
+            self._has_update_methods[self][0]
+    #end has_update
+
+    @property
+    def has_update2(self) :
+        "does this plugin have the update2 method (three input frame buffers)."
+        return \
+            self._has_update_methods[self][1]
+    #end has_update2
+
 #end PLUGIN_TYPE
+PLUGIN_TYPE._has_update_methods = \
+    {
+        PLUGIN_TYPE.FILTER : (True, False),
+        PLUGIN_TYPE.SOURCE : (True, False),
+        PLUGIN_TYPE.MIXER2 : (False, True),
+        PLUGIN_TYPE.MIXER3 : (False, True),
+    }
 
 @enum.unique
 class COLOUR_MODEL(enum.Enum) :
