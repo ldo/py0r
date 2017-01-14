@@ -327,7 +327,7 @@ def check_dimensions_ok(dimensions, where = None) :
 
 class Plugin :
     "wrapper class for a Frei0r plugin. Can be instantiated directly from" \
-    " the pathname of a .so file; otherwise, use the find_all method."
+    " the pathname of a .so file; otherwise, use find_all or get_all to get these."
 
     __slots__ = ("_lib", "info", "_params", "_params_by_name")
 
