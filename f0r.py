@@ -455,6 +455,8 @@ class Plugin :
             elif isinstance(frame, qah.ImageSurface) :
                 # Not bothering to check pixel/dimensions compatibility!
                 baseaddr = frame.data
+            elif frame == None :
+                baseaddr = None
             else :
                 raise TypeError("wrong type for frame arg")
             #end if
