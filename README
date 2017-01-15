@@ -1,0 +1,125 @@
+Py0r is a Python 3 language binding for the
+[Frei0r](https://frei0r.dyne.org/) API for video effects plugins.
+While Frei0r itself does not define an overall API library (each
+plugin is a separate shareable object that must be individually
+managed by the application), Py0r provides a convenient high-level
+framework for managing these plugins, and in particular for
+interoperating with the Cairo graphics library.
+
+
+Installation
+============
+
+Before installing Py0r, you will also need to install the following:
+
+* [Qahirah](https://github.com/ldo/qahirah) -- my binding for the
+  Cairo graphics library
+* [python_pixman](https://github.com/ldo/python_pixman) -- my binding
+  for the Pixman pixel-manipulation library. This is used to handle
+  rearrangement of the colour channels for Frei0r plugins that do not
+  conform to the usual Cairo-compatible arrangement.
+
+Installation is explained further in the `setup.py` script.
+
+
+Basic Usage
+===========
+
+Functions are accessed from the `f0r` module. You will typically also
+need the `qahirah` module for Cairo graphics functions:
+
+    import f0r
+    import qahirah
+
+The easiest way to load all available Frei0r plugins is with the `get_all()`
+call:
+
+    plugins = f0r.get_all()
+
+This returns a dict of `Plugin` objects keyed by the plugin name,
+which according to the Frei0r spec must be unique. Now it is easy
+enough to access, for example, the “sigmoidaltransfer” plugin:
+
+    effect = plugins["sigmoidaltransfer"]
+
+This particular plugin is a “filter” which takes one input image
+and produces one output image.
+
+Each `Plugin` object has an `info` attribute which gives information
+about the plugin, and a `params` attribute which is a dict
+(keyed by parameter name) of information about that parameter:
+
+    print(effect.info.plugin_type, effect.info.colour_model)
+    for param in sorted(effect.params.values(), key = lambda p : p.index) :
+        print \
+          (
+                "    %d: %s (%s) -- %s"
+            %
+                (param.index, param.name, param.type, param.explanation)
+          )
+    #end for
+
+prints out
+
+    PLUGIN_TYPE.FILTER COLOUR_MODEL.RGBA8888
+    0: brightness (PARAM.DOUBLE) -- Brightnesss of image
+    1: sharpness (PARAM.DOUBLE) -- Sharpness of transfer
+
+We can construct a Frei0r “plugin instance” (Py0r type
+`Plugin.Instance`) that will operate on images of these dimensions
+(assuming they conform to the Frei0r requirements):
+
+    instance = effect.construct(src.dimensions)
+
+Parameter settings for the plugin instance can be individually accessed
+as though the instance were a dict:
+
+    instance["brightness"] = 0.9
+
+All the current parameter settings for the instance can be accessed as
+a dict via the `params` attribute:
+
+    print(instance.params)
+
+Multiple parameter values can be updated at once by assigning a dict
+to this attribute:
+
+    instance.params = {"brightness" : 0.9}
+
+(Parameter values not mentioned in the assigned dict remain unchanged.)
+
+Supposing we load an image to operate on from a PNG file:
+
+    src = qahirah.ImageSurface.create_from_png(«src_file_name»)
+
+Create a new `ImageSurface` to hold the result of applying the effect:
+
+    dst = src.create_like()
+
+Now we call the instance’s `update` method to apply the effect to
+`src` and put the result in `dst`:
+
+    instance.update(0, src, dst)
+
+And finally we can save `dst` to a new PNG file for easy viewing:
+
+    dst.write_to_png(«dst_file_name»)
+
+
+Additional Python Notes
+=======================
+
+Enumerations in the Frei0r C API are represented as Python enumerations
+with additional convenient attributes. For example, `PLUGIN_TYPE` values
+have a `nr_inputs` attribute which tells you how many input images the
+plugin requires to operate on.
+
+For example, for the “sigmoidaltransfer” plugin mentioned above,
+
+    print(effect.info.plugin_type.nr_inputs)
+
+prints the value 1.
+
+
+Lawrence D'Oliveiro <ldo@geek-central.gen.nz>
+2017 January 15
