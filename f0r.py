@@ -566,13 +566,13 @@ class Plugin :
                       )
                 #end if
                 return \
-                    (lambda : None, lambda : self.dst.data)[self.dst != None]()
+                    (lambda : None, lambda : (lambda : self.dst, lambda : self.dst.data)[hasattr(self.dst, "data")]())[self.dst != None]()
             #end convert
 
             @property
             def buf(self) :
                 return \
-                    (lambda : None, lambda : self.src.data)[self.src != None]()
+                    (lambda : None, lambda : (lambda : self.src, lambda : self.src.data)[hasattr(self.src, "data")]())[self.src != None]()
             #end buf
 
         #end ChannelRearranger
