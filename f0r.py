@@ -409,8 +409,7 @@ class Plugin :
         #end if
     #end __del__
 
-    @property
-    def params(self) :
+    def _get_params(self) :
         if self._params == None :
             self._params = []
             self._params_by_name = {}
@@ -422,6 +421,11 @@ class Plugin :
                 self._params_by_name[param.name] = param
             #end for
         #end if
+    #end _get_params
+
+    @property
+    def params(self) :
+        self._get_params()
         return \
             self._params_by_name
     #end params
@@ -454,12 +458,14 @@ class Plugin :
 
         def __len__(self) :
             "the number of parameters."
+            self._parent._get_params()
             return \
                 len(self._parent._params)
         #end __len__
 
         def __getitem__(self, paramid) :
             "retrieves parameter value; paramid can be integer index or string name."
+            self._parent._get_params()
             if isinstance(paramid, int) :
                 param = self._parent._params[paramid]
             elif isinstance(paramid, str) :
@@ -475,6 +481,7 @@ class Plugin :
 
         def __setitem__(self, paramid, newvalue) :
             "sets new parameter value; paramid can be integer index or string name."
+            self._parent._get_params()
             if isinstance(paramid, int) :
                 param = self._parent._params[paramid]
             elif isinstance(paramid, str) :
@@ -488,6 +495,7 @@ class Plugin :
         #end __setitem__
 
         def __iter__(self) :
+            self._parent._get_params()
             for param in self._parent._params :
                 yield param.name
             #end for
