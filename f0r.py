@@ -613,6 +613,9 @@ class Plugin :
                 outframe_r.buf
               )
             outframe_r.convert()
+            if isinstance(outframe, qah.ImageSurface) :
+                outframe.mark_dirty()
+            #end if
         #end update
 
         def update2(self, time, inframe1, inframe2, inframe3, outframe) :
@@ -690,6 +693,9 @@ class Plugin :
                     outframe_r.buf
                   )
                 outframe_r.convert()
+            #end if
+            if isinstance(outframe, qah.ImageSurface) :
+                outframe.mark_dirty()
             #end if
         #end update2
 
