@@ -24,9 +24,9 @@ from pixman import \
     PIXMAN
 
 class F0R :
-    "useful definitions adapted from frei0r.h. You will need to use the constants," \
-    " but apart from that, see the more Pythonic wrappers defined outside this" \
-    " class in preference to accessing low-level structures directly."
+    "useful definitions adapted from frei0r.h. See the more Pythonic wrappers" \
+    " defined outside this class in preference to accessing low-level structures" \
+    " directly."
 
     MAJOR_VERSION = 1
     MINOR_VERSION = 2
@@ -107,6 +107,7 @@ class F0R :
 
 @enum.unique
 class PLUGIN_TYPE(enum.Enum) :
+    "the types of Frei0r plugins."
     FILTER = 0
     SOURCE = 1
     MIXER2 = 2
@@ -151,6 +152,7 @@ PLUGIN_TYPE._has_update_methods = \
 
 @enum.unique
 class COLOUR_MODEL(enum.Enum) :
+    "the various colour models that Frei0r plugins may use."
     BGRA8888 = 0
     RGBA8888 = 1
     PACKED32 = 2
@@ -166,6 +168,7 @@ class COLOUR_MODEL(enum.Enum) :
 
 @enum.unique
 class PARAM(enum.Enum) :
+    "the types of parameters that Frei0r plugins may accept."
     BOOL = 0
     DOUBLE = 1
     COLOUR = 2
@@ -242,7 +245,9 @@ del to_f0r_bool, to_f0r_float, to_f0r_colour, to_f0r_position, to_f0r_string
 del from_f0r_colour, from_f0r_position
 
 plugin_info = namedtuple("PluginInfo", tuple(f[0] for f in F0R.plugin_info_t._fields_))
+plugin_info.__doc__ = "information about a Frei0r plugin"
 param_info = namedtuple("PluginParamInfo", tuple(f[0] for f in F0R.param_info_t._fields_) + ("index",))
+param_info.__doc__ = "information about a parameter of a Frei0r plugin"
 
 def decode_struct(structval, structtype, tupletype, enum_remap, extra) :
     result = []
@@ -425,6 +430,7 @@ class Plugin :
 
     @property
     def params(self) :
+        "information about the parameters to this Plugin."
         self._get_params()
         return \
             self._params_by_name
@@ -495,6 +501,7 @@ class Plugin :
         #end __setitem__
 
         def __iter__(self) :
+            "iterating over parameter names."
             self._parent._get_params()
             for param in self._parent._params :
                 yield param.name
@@ -503,6 +510,7 @@ class Plugin :
 
         @property
         def params(self) :
+            "parameter settings as an updateable dict."
             result = {}
             for paramname in self :
                 result[paramname] = self[paramname]
@@ -560,6 +568,8 @@ class Plugin :
             #end __init__
 
             def convert(self) :
+                "actually implements the channel rearrangement. Returns the output" \
+                " buffer, which is handy for input conversions."
                 if self.rearrange :
                     pixman.image_composite \
                       (
@@ -579,6 +589,7 @@ class Plugin :
 
             @property
             def buf(self) :
+                "returns the input buffer. Handy for output conversions."
                 return \
                     (lambda : None, lambda : (lambda : self.src, lambda : self.src.data)[hasattr(self.src, "data")]())[self.src != None]()
             #end buf
@@ -586,6 +597,9 @@ class Plugin :
         #end ChannelRearranger
 
         def update(self, time, inframe, outframe) :
+            "invokes the plugin on the single input inframe, to produce its output in outframe." \
+            " inframe and outframe can be qahirah.ImageSurface objects, pixman.Image objects," \
+            " bytearray or array.array objects, or even just raw pointer addresses."
             if not hasattr(self._parent._lib, "f0r_update") :
                 raise NotImplementedError("plugin has no update method")
             #end if
@@ -619,6 +633,9 @@ class Plugin :
         #end update
 
         def update2(self, time, inframe1, inframe2, inframe3, outframe) :
+            "invokes the plugin on up to 3 input inframes, to produce its output in outframe." \
+            " The inframes and outframe can be qahirah.ImageSurface objects, pixman.Image" \
+            " objects, bytearray or array.array objects, or even just raw pointer addresses."
             if hasattr(self._parent._lib, "f0r_update2") :
                 inframe1_r = self.ChannelRearranger \
                   (
@@ -702,8 +719,9 @@ class Plugin :
     #end Instance
 
     def construct(self, dimensions, rearrange = True) :
-        "constructs a new instance of this Plugin. rearrange indicates whether to rearrange" \
-        " R and B channels as necessary to agree with Cairo’s FORMAT_ARGB32 channel ordering."
+        "constructs a new instance of this Plugin, from the given (qahirah.Vector-compatible)" \
+        " dimensions. rearrange indicates whether to rearrange R and B channels as" \
+        " necessary to agree with Cairo’s FORMAT_ARGB32 channel ordering."
         width, height = check_dimensions_ok(dimensions)
         instance = self._lib.f0r_construct(width, height)
         if instance == None :
