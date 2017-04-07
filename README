@@ -4,7 +4,8 @@ While Frei0r itself does not define an overall API library (each
 plugin is a separate shareable object that must be individually
 managed by the application), Py0r provides a convenient high-level
 framework for managing these plugins, and in particular for
-interoperating with the Cairo graphics library.
+interoperating with the [Cairo](https://www.cairographics.org/)
+graphics library.
 
 
 Installation
@@ -12,10 +13,12 @@ Installation
 
 Before installing Py0r, you will also need to install the following:
 
-* [Qahirah](https://github.com/ldo/qahirah) -- my binding for the
-  Cairo graphics library
-* [python_pixman](https://github.com/ldo/python_pixman) -- my binding
-  for the Pixman pixel-manipulation library. This is used to handle
+* Qahirah ([GitLab](https://gitlab.com/ldo/qahirah),
+  [GitHub](https://github.com/ldo/qahirah)) -- my binding for the
+  [Cairo](https://www.cairographics.org/) graphics library
+* python_pixman ([GitLab](https://gitlab.com/ldo/python_pixman),
+  [GitHub](https://github.com/ldo/python_pixman)) -- my binding for
+  the Pixman pixel-manipulation library. This is used to handle
   rearrangement of the colour channels for Frei0r plugins that do not
   conform to the usual Cairo-compatible arrangement.
 
@@ -122,4 +125,4 @@ prints the value 1.
 
 
 Lawrence D'Oliveiro <ldo@geek-central.gen.nz>
-2017 January 15
+2017 April 7
