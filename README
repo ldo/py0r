@@ -68,6 +68,10 @@ prints out
     0: brightness (PARAM.DOUBLE) -- Brightnesss of image
     1: sharpness (PARAM.DOUBLE) -- Sharpness of transfer
 
+Supposing we load an image to operate on from a PNG file:
+
+    src = qahirah.ImageSurface.create_from_png(«src_file_name»)
+
 We can construct a Frei0r “plugin instance” (Py0r type
 `Plugin.Instance`) that will operate on images of these dimensions
 (assuming they conform to the Frei0r requirements):
@@ -90,10 +94,6 @@ to this attribute:
     instance.params = {"brightness" : 0.9}
 
 (Parameter values not mentioned in the assigned dict remain unchanged.)
-
-Supposing we load an image to operate on from a PNG file:
-
-    src = qahirah.ImageSurface.create_from_png(«src_file_name»)
 
 Create a new `ImageSurface` to hold the result of applying the effect:
 
