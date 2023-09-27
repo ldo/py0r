@@ -18,6 +18,6 @@ setuptools.setup \
     description = "language bindings for the Frei0r effects plugins, for Python 3.4 or later",
     author = "Lawrence D'Oliveiro",
     author_email = "ldo@geek-central.gen.nz",
-    url = "https://github.com/ldo/py0r",
+    url = "https://gitlab.com/ldo/py0r",
     py_modules = ["f0r"],
   )
